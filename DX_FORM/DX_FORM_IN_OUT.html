@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Part Management</title>
+    <link rel="stylesheet" href="../Asset/bootstrap-5.3.3-dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../DX_FORM/DX_STYLES.css">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <script src="../Asset/jquery-1.11.3.min.js"></script>
+    <style>
+        .error-message {
+            color: red;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg bg-dark border-bottom border-body" data-bs-theme="dark">
+        <div class="apaja">
+            <a href="#" class="highrack">HIGH RACK</a>
+            <ul class="navlist">
+                <li><a href="../DX_VISUAL/DX_VISUALIZATION.php" class="active">Visual</a></li>
+                <li><a href="../DX_SUMMARY/DX_SUMMARY_TABLE.php">Summary</a></li>
+                <li><a href="../DX_HISTORY/DX_DATA_TABLE.php">History</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container d-flex">
+        <div class="section w-50">
+            <h2 style="font-weight: 600;">Put - In Part</h2>
+            <form id="putInForm" action="../DX_MODEL/DX_PROCESS_FORM.php" method="post" onsubmit="return validateForm('putInForm')">
+                <div class="form-group">
+                    <label for="locationIn">Location</label>
+                    <input type="text" id="locationIn" name="locationIn" required oninput="limitInputLength(this, 5); checkLocationAvailability(this.value);">
+                    <span id="locationInError" class="error-message">Location already exists.</span>
+                </div>
+                <div class="form-group">
+                    <label for="partNumbersIn">Part Numbers</label>
+                    <textarea id="partNumbersIn" name="partNumbersIn" required oninput="limitInputLength(this, 14)"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="qtyIn">Qty</label>
+                    <textarea id="qtyIn" name="qtyIn" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="operatorIn">Operator</label>
+                    <input type="text" id="operatorIn" name="operatorIn" required>
+                </div>
+                <div class="form-group">
+                    <button class="buttonIn" type="submit" name="registerIn">REGISTER</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="vertical-divider"></div>
+
+        <div class="section w-50">
+            <h2 style="font-weight: 600;">Take - Out Part</h2>
+            <form id="takeOutForm" action="../DX_MODEL/DX_PROCESS_FORM.php" method="post" onsubmit="return validateForm('takeOutForm')">
+                <div class="form-group">
+                    <label for="partNumberOut">Part Number</label>
+                    <input type="text" id="partNumberOut" name="partNumberOut" required oninput="fetchLocation(); limitInputLength(this, 14)">
+                </div>
+                <div class="form-group">
+                    <label for="locationOut">Location</label>
+                    <input type="text" id="locationOut" name="locationOut" required readonly>
+                </div>
+                <div class="form-group">
+                    <label for="operatorOut">Operator</label>
+                    <input type="text" id="operatorOut" name="operatorOut" required>
+                </div>
+                <div class="form-group">
+                    <button class="buttonOut" type="submit" name="registerOut">TAKE-OUT</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function fetchLocation() {
+            let partNumber = document.getElementById('partNumberOut').value;
+            if (partNumber.length > 14) {
+                partNumber = partNumber.substring(0, 14);
+                document.getElementById('partNumberOut').value = partNumber;  // Update the input field
+            }
+
+            if (partNumber.length > 10) {
+                $.ajax({
+                    url: '../DX_MODEL/DX_FETCH_LOCATION.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: { partNumber: partNumber },
+                    success: function(response) {
+                        console.log(response); // Debugging response
+                        if (response.location) {
+                            document.getElementById('locationOut').value = response.location;
+                        } else {
+                            document.getElementById('locationOut').value = 'Not found';
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error: ', status, error);
+                        console.log(xhr.responseText); // Log detailed error response
+                    }
+                });
+            }
+        }
+
+        function checkLocationAvailability(location) {
+            if (location.length > 5) {
+                location = location.substring(0, 5);
+                document.getElementById('locationIn').value = location;  // Update the input field
+            }
+
+            if (location.length === 5) {
+                $.ajax({
+                    url: '../DX_MODEL/DX_CHECK_LOCATION.php',
+                    type: 'POST',
+                    data: { location: location },
+                    success: function(response) {
+                        if (response === 'exists') {
+                            document.getElementById('locationInError').style.display = 'block';
+                            document.getElementById('locationIn').setCustomValidity('Location already exists');
+                        } else {
+                            document.getElementById('locationInError').style.display = 'none';
+                            document.getElementById('locationIn').setCustomValidity('');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error: ', status, error);
+                        console.log(xhr.responseText); // Log detailed error response
+                    }
+                });
+            }
+        }
+
+        function limitInputLength(element, maxLength) {
+            const values = element.value.split(/,|\n/);
+            const limitedValues = values.map(value => value.length > maxLength ? value.substring(0, maxLength) : value);
+            element.value = limitedValues.join(',');
+        }
+
+        function validateForm(formId) {
+            const form = document.getElementById(formId);
+            const locationIn = document.getElementById('locationIn');
+            const locationOut = document.getElementById('locationOut');
+            const partNumbers = document.getElementById('partNumbersIn').value.split(',');
+            const qtys = document.getElementById('qtyIn').value.split(',');
+
+            if (formId === 'putInForm') {
+                limitInputLength(locationIn, 5);
+
+                if (partNumbers.length !== qtys.length) {
+                    alert('The number of quantities must match the number of part numbers.');
+                    return false;
+                }
+
+                for (let i = 0; i < partNumbers.length; i++) {
+                    if (partNumbers[i].trim().length > 14) {
+                        alert('Part Number cannot be more than 14 characters.');
+                        return false;
+                    }
+
+                    if (qtys[i].trim() === '' || isNaN(qtys[i]) || Number(qtys[i]) <= 0) {
+                        alert('Quantity must be a positive number.');
+                        return false;
+                    }
+                }
+
+                if (document.getElementById('locationInError').style.display === 'block') {
+                    alert('Location already exists.');
+                    return false;
+                }
+            } else if (formId === 'takeOutForm') {
+                limitInputLength(document.getElementById('partNumberOut'), 14);
+                limitInputLength(locationOut, 5);
+            }
+
+            return true;
+        }
+    </script>
+
+</body>
+</html>
